@@ -1,0 +1,56 @@
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: pm_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: project_management
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pm_network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pm_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/project_management
+      - SECRET_KEY=your-secret-key-change-in-production-use-long-random-string
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - API_V1_STR=/api/v1
+      - PROJECT_NAME=Project Management API
+      - BACKEND_CORS_ORIGINS=["*"]
+      - EMAIL_ENABLED=false
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+    networks:
+      - pm_network
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  pm_network:
+    driver: bridge

@@ -1,0 +1,38 @@
+# FastAPI and web server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Database
+sqlalchemy==2.0.25
+alembic==1.13.1
+psycopg2-binary==2.9.9
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+# bcrypt must be explicitly pinned — passlib[bcrypt] does not always pin a
+# compatible version, which can cause "hash could not be identified" errors
+# during deployment (especially in Docker / Alpine-based images).
+bcrypt==4.0.1
+python-dateutil==2.8.2
+
+# Excel parsing
+openpyxl==3.1.2
+pandas==2.1.4
+
+# Validation and settings
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Email (for password reset)
+email-validator==2.1.0
+
+# Environment variables
+python-dotenv==1.0.0
+
+# CORS
+fastapi-cors==0.0.6
+
+# Utilities
+python-json-logger==2.0.7
