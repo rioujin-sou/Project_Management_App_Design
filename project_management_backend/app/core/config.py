@@ -1,5 +1,5 @@
 from typing import List, Union
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import json
 
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     # or the wildcard string '["*"]' for development/testing.
     # ⚠️  WARNING: Using "*" disables origin checking entirely — never use this
     #    in production as it exposes the API to cross-site request attacks.
-    BACKEND_CORS_ORIGINS: Union[List[AnyHttpUrl], str] = []
+    BACKEND_CORS_ORIGINS: Union[List[str], str] = []
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
