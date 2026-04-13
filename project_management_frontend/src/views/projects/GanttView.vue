@@ -203,10 +203,12 @@ const formatProjectDate = (dateString) => {
 }
 
 onMounted(async () => {
-  await Promise.all([
-    projectsStore.fetchProjectById(projectId.value),
-    tasksStore.fetchTasks(projectId.value),
-  ])
+  // Fetch project only if not already cached for this ID (fire-and-forget — no await)
+  const currentId = Number(projectId.value)
+  if (!projectsStore.currentProject || projectsStore.currentProject.id !== currentId) {
+    projectsStore.fetchProjectById(projectId.value)
+  }
+  await tasksStore.fetchTasks(projectId.value)
   loading.value = false
   await nextTick()
   initGantt()
