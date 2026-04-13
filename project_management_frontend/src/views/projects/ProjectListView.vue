@@ -175,6 +175,24 @@
       </template>
     </Dialog>
 
+    <!-- Delete Confirmation Dialog -->
+    <Dialog
+      v-model:visible="showDeleteDialog"
+      header="Delete Confirmation"
+      :modal="true"
+      :style="{ width: '400px' }"
+      :closable="!deleting"
+    >
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <i class="pi pi-exclamation-triangle" style="font-size: 24px; color: var(--red-500);" />
+        <span>Are you sure you want to delete project <strong>{{ projectToDelete?.name }}</strong>? This action cannot be undone.</span>
+      </div>
+      <template #footer>
+        <Button label="Cancel" severity="secondary" text :disabled="deleting" @click="showDeleteDialog = false" />
+        <Button label="Delete" severity="danger" icon="pi pi-trash" :loading="deleting" @click="executeDelete" />
+      </template>
+    </Dialog>
+
   </div>
 </template>
 
@@ -184,7 +202,6 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectsStore } from '@/stores/projects'
 import { useUsersStore } from '@/stores/users'
-import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -202,8 +219,11 @@ const router = useRouter()
 const authStore = useAuthStore()
 const projectsStore = useProjectsStore()
 const usersStore = useUsersStore()
-const confirm = useConfirm()
 const toast = useToast()
+
+const showDeleteDialog = ref(false)
+const projectToDelete = ref(null)
+const deleting = ref(false)
 
 const showUploadDialog = ref(false)
 const fileUploadRef = ref(null)
@@ -319,30 +339,22 @@ const saveVisibility = async () => {
 }
 
 const confirmDelete = (project) => {
-  confirm.require({
-    message: `Are you sure you want to delete project "${project.name}"? This action cannot be undone.`,
-    header: 'Delete Confirmation',
-    icon: 'pi pi-exclamation-triangle',
-    acceptClass: 'p-button-danger',
-    accept: async () => {
-      const result = await projectsStore.deleteProject(project.id)
-      if (result.success) {
-        toast.add({
-          severity: 'success',
-          summary: 'Deleted',
-          detail: 'Project deleted successfully',
-          life: 3000,
-        })
-      } else {
-        toast.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: result.error,
-          life: 5000,
-        })
-      }
-    },
-  })
+  projectToDelete.value = project
+  showDeleteDialog.value = true
+}
+
+const executeDelete = async () => {
+  if (!projectToDelete.value) return
+  deleting.value = true
+  const result = await projectsStore.deleteProject(projectToDelete.value.id)
+  deleting.value = false
+  showDeleteDialog.value = false
+  projectToDelete.value = null
+  if (result.success) {
+    toast.add({ severity: 'success', summary: 'Deleted', detail: 'Project deleted successfully', life: 3000 })
+  } else {
+    toast.add({ severity: 'error', summary: 'Error', detail: result.error, life: 5000 })
+  }
 }
 </script>
 
