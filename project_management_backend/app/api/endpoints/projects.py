@@ -6,6 +6,7 @@ import tempfile
 import os
 import logging
 import traceback
+from datetime import datetime
 from app.db.session import get_db
 from app.models.user import User, UserRole
 from app.models.project import Project, project_visibility
@@ -13,7 +14,7 @@ from app.models.task import Task
 from app.schemas.project import Project as ProjectSchema, ProjectWithTasks, VisibilityUpdate
 from app.schemas.auth import MessageResponse
 from app.api.deps.auth import require_tdl, require_tdl_or_tpm, get_current_user
-from app.services.excel_parser import parse_excel_file, ExcelParserError
+from app.services.excel_parser import parse_excel_file, ExcelParserError, serialize_for_json
 from app.services.excel_exporter import export_tasks_to_excel
 from app.services.audit_service import log_audit
 
@@ -209,7 +210,7 @@ async def upload_project_excel(
                 )
         
         logger.info(f"Added {created_count} tasks to session, committing...")
-        
+
         try:
             db.commit()
             logger.info("Database commit successful")
@@ -220,8 +221,22 @@ async def upload_project_excel(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Database error while saving tasks: {str(e)}"
             )
-        
+
         db.refresh(project)
+
+        # Inject DB-assigned task IDs into baseline_json.tasks so the frontend
+        # can use `id` as the unique comparison key (wp_id is not unique across sites).
+        tasks_in_db = db.query(Task).filter(Task.project_id == project.id).order_by(Task.id).all()
+        baseline_tasks = project.baseline_json.get('tasks', [])
+        if len(tasks_in_db) == len(baseline_tasks):
+            import copy
+            updated_baseline = copy.deepcopy(project.baseline_json)
+            for i, db_task in enumerate(tasks_in_db):
+                updated_baseline['tasks'][i]['id'] = db_task.id
+            project.baseline_json = updated_baseline
+            db.commit()
+            db.refresh(project)
+            logger.info(f"Injected task IDs into baseline_json for project_id={project.id}")
 
         # Grant visibility to all TDL users automatically
         tdl_users = db.query(User).filter(User.role == UserRole.tdl).all()
@@ -253,6 +268,80 @@ async def upload_project_excel(
         # Clean up temp file
         if os.path.exists(tmp_file_path):
             os.unlink(tmp_file_path)
+
+
+@router.post("/{project_id}/update-baseline", response_model=ProjectSchema)
+def update_project_baseline(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_tdl)
+):
+    """
+    Snapshot current tasks as the new baseline for a project. Only TDL can update.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+
+    tasks = db.query(Task).filter(Task.project_id == project_id).all()
+
+    # Build task snapshot — same fields the excel parser stores, plus `id` for unique comparison
+    task_snapshots = []
+    for t in tasks:
+        snapshot = {
+            'id': t.id,
+            'site': t.site,
+            'category': t.category,
+            'product': t.product,
+            'wp': t.wp,
+            'wp_id': t.wp_id,
+            'unit': t.unit,
+            'effort': t.effort,
+            'comment': t.comment,
+            'tuning_factor': t.tuning_factor,
+            'qty': t.qty,
+            'total': t.total,
+            'role': t.role,
+            'resource_category': t.resource_category,
+            'support_type': t.support_type,
+            'spc': t.spc,
+            'resource_name': t.resource_name,
+            'start_date': t.start_date,
+            'end_date': t.end_date,
+            'rate': float(t.rate) if t.rate is not None else None,
+            'cost': float(t.cost) if t.cost is not None else None,
+        }
+        task_snapshots.append(snapshot)
+
+    serialized_tasks = serialize_for_json(task_snapshots)
+
+    project.baseline_json = {
+        'opp_id': project.opp_id,
+        'name': project.name,
+        'version': project.version,
+        'imported_at': datetime.utcnow().isoformat(),
+        'task_count': len(serialized_tasks),
+        'tasks': serialized_tasks,
+    }
+
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Project",
+        entity_id=project.id,
+        changes={"message": f"Baseline updated with {len(serialized_tasks)} tasks"}
+    )
+
+    db.commit()
+    db.refresh(project)
+    _attach_project_meta(project, db)
+
+    logger.info(f"Baseline updated for project_id={project_id} with {len(serialized_tasks)} tasks")
+    return project
 
 
 @router.get("/{project_id}/export")

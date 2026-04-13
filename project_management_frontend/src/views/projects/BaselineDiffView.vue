@@ -215,23 +215,23 @@ const currentTasks = computed(() => tasksStore.tasks)
 const comparedFields = ['wp_id', 'site', 'category', 'product', 'wp', 'role', 'resource_name', 'resource_category', 'start_date', 'end_date', 'effort', 'comment']
 
 const addedTasks = computed(() => {
-  const baselineIds = new Set(baselineTasks.value.map(t => t.wp_id))
-  return currentTasks.value.filter(t => !baselineIds.has(t.wp_id))
+  const baselineIds = new Set(baselineTasks.value.map(t => t.id))
+  return currentTasks.value.filter(t => !baselineIds.has(t.id))
 })
 
 const removedTasks = computed(() => {
-  const currentIds = new Set(currentTasks.value.map(t => t.wp_id))
-  return baselineTasks.value.filter(t => !currentIds.has(t.wp_id))
+  const currentIds = new Set(currentTasks.value.map(t => t.id))
+  return baselineTasks.value.filter(t => !currentIds.has(t.id))
 })
 
 const modifiedTasks = computed(() => {
   const modified = []
-  const baselineMap = new Map(baselineTasks.value.map(t => [t.wp_id, t]))
-  
+  const baselineMap = new Map(baselineTasks.value.map(t => [t.id, t]))
+
   currentTasks.value.forEach(current => {
-    const baseline = baselineMap.get(current.wp_id)
+    const baseline = baselineMap.get(current.id)
     if (!baseline) return
-    
+
     const changedFields = []
     comparedFields.forEach(field => {
       const currentVal = normalizeValue(current[field])
@@ -240,7 +240,7 @@ const modifiedTasks = computed(() => {
         changedFields.push(field)
       }
     })
-    
+
     if (changedFields.length > 0) {
       modified.push({
         current,
@@ -249,19 +249,19 @@ const modifiedTasks = computed(() => {
       })
     }
   })
-  
+
   return modified
 })
 
 const unchangedTasks = computed(() => {
-  const modifiedIds = new Set(modifiedTasks.value.map(t => t.current.wp_id))
-  const addedIds = new Set(addedTasks.value.map(t => t.wp_id))
-  const baselineIds = new Set(baselineTasks.value.map(t => t.wp_id))
-  
-  return currentTasks.value.filter(t => 
-    !modifiedIds.has(t.wp_id) && 
-    !addedIds.has(t.wp_id) &&
-    baselineIds.has(t.wp_id)
+  const modifiedIds = new Set(modifiedTasks.value.map(t => t.current.id))
+  const addedIds = new Set(addedTasks.value.map(t => t.id))
+  const baselineIds = new Set(baselineTasks.value.map(t => t.id))
+
+  return currentTasks.value.filter(t =>
+    !modifiedIds.has(t.id) &&
+    !addedIds.has(t.id) &&
+    baselineIds.has(t.id)
   )
 })
 
