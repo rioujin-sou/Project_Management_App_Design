@@ -72,15 +72,15 @@
                 @click.stop="openVisibilityDialog(data)"
                 v-tooltip.top="'Project Visibility'"
               />
-              <Button
-                v-if="authStore.isTDL"
-                icon="pi pi-trash"
-                severity="danger"
-                text
-                rounded
-                @click.stop="confirmDelete(data)"
-                v-tooltip.top="'Delete'"
-              />
+              <span v-if="authStore.isTDL" @click.stop.prevent="confirmDelete(data)">
+                <Button
+                  icon="pi pi-trash"
+                  severity="danger"
+                  text
+                  rounded
+                  v-tooltip.top="'Delete'"
+                />
+              </span>
             </div>
           </template>
         </Column>
@@ -339,6 +339,7 @@ const saveVisibility = async () => {
 }
 
 const confirmDelete = (project) => {
+  if (showDeleteDialog.value || deleting.value) return
   projectToDelete.value = project
   showDeleteDialog.value = true
 }
