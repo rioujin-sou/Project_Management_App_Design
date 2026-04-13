@@ -212,7 +212,7 @@ const baselineTasks = computed(() => {
 const currentTasks = computed(() => tasksStore.tasks)
 
 // Compare tasks
-const comparedFields = ['wp_id', 'site', 'category', 'product', 'wp', 'role', 'resource_name', 'resource_category', 'start_date', 'end_date', 'effort', 'completion_pct', 'comment']
+const comparedFields = ['wp_id', 'site', 'category', 'product', 'wp', 'role', 'resource_name', 'resource_category', 'start_date', 'end_date', 'effort', 'comment']
 
 const addedTasks = computed(() => {
   const baselineIds = new Set(baselineTasks.value.map(t => t.wp_id))
