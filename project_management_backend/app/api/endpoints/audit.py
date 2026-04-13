@@ -11,7 +11,7 @@ from app.api.deps.auth import require_tdl
 router = APIRouter()
 
 
-@router.get("/", response_model=List[AuditLogSchema])
+@router.get("", response_model=List[AuditLogSchema])
 def get_audit_logs(
     skip: int = 0,
     limit: int = 100,

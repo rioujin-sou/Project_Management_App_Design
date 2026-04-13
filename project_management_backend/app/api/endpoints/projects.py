@@ -29,7 +29,7 @@ def _attach_project_meta(project: Project, db: Session) -> Project:
     return project
 
 
-@router.get("/", response_model=List[ProjectSchema])
+@router.get("", response_model=List[ProjectSchema])
 def list_projects(
     skip: int = 0,
     limit: int = 100,

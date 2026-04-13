@@ -94,7 +94,7 @@ def delete_user(
     return MessageResponse(message=f"User {user.email} deleted successfully")
 
 
-@router.get("/", response_model=list[UserSchema])
+@router.get("", response_model=list[UserSchema])
 def list_users(
     skip: int = 0,
     limit: int = 100,

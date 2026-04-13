@@ -99,96 +99,96 @@ api.interceptors.response.use(
 // Auth API
 export const authAPI = {
   login: (email, password) =>
-    api.post('/api/v1/auth/login/', { email, password }),
+    api.post('/api/v1/auth/login', { email, password }),
 
   register: (email, password) =>
-    api.post('/api/v1/auth/register/', { email, password }),
+    api.post('/api/v1/auth/register', { email, password }),
 
   forgotPassword: (email) =>
-    api.post('/api/v1/auth/forgot-password/', { email }),
+    api.post('/api/v1/auth/forgot-password', { email }),
 
   resetPassword: (token, newPassword) =>
-    api.post('/api/v1/auth/reset-password/', { token, new_password: newPassword }),
+    api.post('/api/v1/auth/reset-password', { token, new_password: newPassword }),
 
   me: () =>
-    api.get('/api/v1/auth/me/'),
+    api.get('/api/v1/auth/me'),
 }
 
 // Projects API
 export const projectsAPI = {
   getAll: () =>
-    api.get('/api/v1/projects/'),
+    api.get('/api/v1/projects'),
 
   getById: (id) =>
-    api.get(`/api/v1/projects/${id}/`),
+    api.get(`/api/v1/projects/${id}`),
 
   uploadExcel: (formData) =>
-    api.post('/api/v1/projects/upload/', formData, {
+    api.post('/api/v1/projects/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
   delete: (id) =>
-    api.delete(`/api/v1/projects/${id}/`),
+    api.delete(`/api/v1/projects/${id}`),
 
   updateBaseline: (id) =>
-    api.post(`/api/v1/projects/${id}/update-baseline/`),
+    api.post(`/api/v1/projects/${id}/update-baseline`),
 
   updateVisibility: (id, userIds) =>
-    api.put(`/api/v1/projects/${id}/visibility/`, { user_ids: userIds }),
+    api.put(`/api/v1/projects/${id}/visibility`, { user_ids: userIds }),
 
   exportExcel: (id) =>
-    api.get(`/api/v1/projects/${id}/export/`, { responseType: 'blob' }),
+    api.get(`/api/v1/projects/${id}/export`, { responseType: 'blob' }),
 }
 
 // Tasks API
 export const tasksAPI = {
   getByProject: (projectId) =>
-    api.get(`/api/v1/tasks/project/${projectId}/`),
+    api.get(`/api/v1/tasks/project/${projectId}`),
 
   getById: (taskId) =>
-    api.get(`/api/v1/tasks/${taskId}/`),
+    api.get(`/api/v1/tasks/${taskId}`),
 
   create: (taskData) =>
-    api.post('/api/v1/tasks/', taskData),
+    api.post('/api/v1/tasks', taskData),
 
   update: (taskId, taskData) =>
-    api.put(`/api/v1/tasks/${taskId}/`, taskData),
+    api.put(`/api/v1/tasks/${taskId}`, taskData),
 
   updateCompletion: (taskId, completionPct) =>
-    api.patch(`/api/v1/tasks/${taskId}/completion/`, { completion_pct: completionPct }),
+    api.patch(`/api/v1/tasks/${taskId}/completion`, { completion_pct: completionPct }),
 
   delete: (taskId) =>
-    api.delete(`/api/v1/tasks/${taskId}/`),
+    api.delete(`/api/v1/tasks/${taskId}`),
 }
 
 // Comments API
 export const commentsAPI = {
   getByTask: (taskId) =>
-    api.get(`/api/v1/comments/${taskId}/comments/`),
+    api.get(`/api/v1/comments/${taskId}/comments`),
 
   create: (taskId, content) =>
-    api.post(`/api/v1/comments/${taskId}/comments/`, { text: content, task_id: taskId }),
+    api.post(`/api/v1/comments/${taskId}/comments`, { text: content, task_id: taskId }),
 
   delete: (commentId) =>
-    api.delete(`/api/v1/comments/${commentId}/`),
+    api.delete(`/api/v1/comments/${commentId}`),
 }
 
 // Audit Logs API
 export const auditLogsAPI = {
   getAll: (params = {}) =>
-    api.get('/api/v1/audit-logs/', { params }),
+    api.get('/api/v1/audit-logs', { params }),
 }
 
 // Users API
 export const usersAPI = {
   getAll: () =>
-    api.get('/api/v1/users/'),
+    api.get('/api/v1/users'),
 
   assignRole: (userId, role) =>
-    api.put(`/api/v1/users/${userId}/role/`, { role }),
+    api.put(`/api/v1/users/${userId}/role`, { role }),
 
   delete: (userId) =>
-    api.delete(`/api/v1/users/${userId}/`),
+    api.delete(`/api/v1/users/${userId}`),
 }
 
 export default api
