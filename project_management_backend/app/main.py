@@ -1,10 +1,13 @@
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.core.security import get_password_hash
 from app.api.endpoints import auth, users, projects, tasks, comments, audit
-from app.db.session import engine
+from app.db.session import engine, SessionLocal
 from app.models import base
+from app.models.user import User, UserRole
 
 # Configure logging
 logging.basicConfig(
@@ -13,14 +16,43 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Create tables (in production, use Alembic migrations)
-# base.Base.metadata.create_all(bind=engine)
+
+def create_first_superuser() -> None:
+    """Create the initial TDL admin user if no TDL users exist."""
+    db = SessionLocal()
+    try:
+        tdl_exists = db.query(User).filter(User.role == UserRole.tdl).first()
+        if tdl_exists:
+            return
+        admin = User(
+            email=settings.FIRST_SUPERUSER_EMAIL,
+            password_hash=get_password_hash(settings.FIRST_SUPERUSER_PASSWORD),
+            role=UserRole.tdl,
+            is_active=True,
+        )
+        db.add(admin)
+        db.commit()
+        logger.info(f"[Startup] Created first superuser: {settings.FIRST_SUPERUSER_EMAIL}")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"[Startup] Failed to create first superuser: {e}")
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_first_superuser()
+    yield
+
 
 app = FastAPI(
+    lifespan=lifespan,
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url=f"{settings.API_V1_STR}/docs",
     redoc_url=f"{settings.API_V1_STR}/redoc",
+    redirect_slashes=False,
 )
 
 # Set up CORS

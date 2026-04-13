@@ -58,7 +58,10 @@ export const useProjectsStore = defineStore('projects', {
       try {
         const response = await projectsAPI.uploadExcel(formData)
         this.uploadProgress = 100
-        await this.fetchProjects()
+        const fetchResult = await this.fetchProjects()
+        if (!fetchResult.success) {
+          console.warn('[Projects] Upload succeeded but project list refresh failed:', fetchResult.error)
+        }
         return { success: true, data: response.data }
       } catch (error) {
         this.error = error.response?.data?.detail || 'Failed to upload Excel file'
