@@ -175,8 +175,6 @@
       </template>
     </Dialog>
 
-    <!-- Delete Confirmation -->
-    <ConfirmDialog />
   </div>
 </template>
 
@@ -196,7 +194,6 @@ import Dialog from 'primevue/dialog'
 import FileUpload from 'primevue/fileupload'
 import Message from 'primevue/message'
 import ProgressBar from 'primevue/progressbar'
-import ConfirmDialog from 'primevue/confirmdialog'
 import Tooltip from 'primevue/tooltip'
 
 const vTooltip = Tooltip
