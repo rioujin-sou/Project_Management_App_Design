@@ -1,7 +1,16 @@
 <template>
   <div class="baseline-diff-view">
     <div class="page-header">
-      <h2>Baseline Comparison</h2>
+      <div>
+        <h2>{{ project?.name || 'Baseline Comparison' }}</h2>
+        <p v-if="project" class="project-meta">
+          <span>Opp ID: {{ project.opp_id }}</span>
+          <span class="separator">•</span>
+          <span>Version: {{ project.version }}</span>
+          <span class="separator">•</span>
+          <span>Created: {{ formatDate(project.created_at) }}</span>
+        </p>
+      </div>
       <div class="btn-group">
         <Button
           v-if="authStore.isTDL"
@@ -319,6 +328,16 @@ const handleUpdateBaseline = async () => {
 </script>
 
 <style scoped>
+.project-meta {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.separator {
+  margin: 0 8px;
+}
+
 .diff-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

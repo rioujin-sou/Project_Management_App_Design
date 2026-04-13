@@ -1,7 +1,16 @@
 <template>
   <div class="kanban-view">
     <div class="page-header">
-      <h2>Kanban Board</h2>
+      <div>
+        <h2>{{ project?.name || 'Kanban Board' }}</h2>
+        <p v-if="project" class="project-meta">
+          <span>Opp ID: {{ project.opp_id }}</span>
+          <span class="separator">•</span>
+          <span>Version: {{ project.version }}</span>
+          <span class="separator">•</span>
+          <span>Created: {{ formatDate(project.created_at) }}</span>
+        </p>
+      </div>
       <div class="btn-group">
         <Button
           icon="pi pi-arrow-left"
@@ -49,8 +58,8 @@
                       {{ element.resource_name || 'Unassigned' }}
                     </div>
                     <div class="task-dates">
-                      <span>{{ formatDate(element.start_date) }}</span>
-                      <span>{{ formatDate(element.end_date) }}</span>
+                      <span>{{ formatDate(element.start_date, true) }}</span>
+                      <span>{{ formatDate(element.end_date, true) }}</span>
                     </div>
                     <div class="task-completion">
                       <ProgressBar :value="element.completion_pct || 0" :showValue="false" />
@@ -87,8 +96,8 @@
                       {{ element.resource_name || 'Unassigned' }}
                     </div>
                     <div class="task-dates">
-                      <span>{{ formatDate(element.start_date) }}</span>
-                      <span>{{ formatDate(element.end_date) }}</span>
+                      <span>{{ formatDate(element.start_date, true) }}</span>
+                      <span>{{ formatDate(element.end_date, true) }}</span>
                     </div>
                     <div class="task-completion">
                       <ProgressBar :value="element.completion_pct || 0" :showValue="false" />
@@ -126,8 +135,8 @@
                       {{ element.resource_name || 'Unassigned' }}
                     </div>
                     <div class="task-dates">
-                      <span>{{ formatDate(element.start_date) }}</span>
-                      <span>{{ formatDate(element.end_date) }}</span>
+                      <span>{{ formatDate(element.start_date, true) }}</span>
+                      <span>{{ formatDate(element.end_date, true) }}</span>
                     </div>
                     <div class="task-completion">
                       <ProgressBar :value="100" :showValue="false" />
@@ -211,6 +220,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useProjectsStore } from '@/stores/projects'
 import { useTasksStore } from '@/stores/tasks'
 import { useCommentsStore } from '@/stores/comments'
 import { useToast } from 'primevue/usetoast'
@@ -227,8 +237,11 @@ import TaskDetailPanel from '@/components/TaskDetailPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
+const projectsStore = useProjectsStore()
 const tasksStore = useTasksStore()
 const commentsStore = useCommentsStore()
+
+const project = computed(() => projectsStore.currentProject)
 const toast = useToast()
 
 const projectId = computed(() => route.params.id)
@@ -271,7 +284,10 @@ const sites = computed(() => {
 })
 
 onMounted(async () => {
-  await tasksStore.fetchTasks(projectId.value)
+  await Promise.all([
+    projectsStore.fetchProjectById(projectId.value),
+    tasksStore.fetchTasks(projectId.value),
+  ])
   loading.value = false
 })
 
@@ -292,9 +308,16 @@ const getTasksByStatus = (site, status) => {
   }
 }
 
-const formatDate = (dateString) => {
+const formatDate = (dateString, short = false) => {
   if (!dateString) return '-'
+  if (short) {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })
+  }
   return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
     month: 'short',
     day: 'numeric',
   })
@@ -382,6 +405,16 @@ const handleTaskUpdated = async () => {
 </script>
 
 <style scoped>
+.project-meta {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.separator {
+  margin: 0 8px;
+}
+
 .task-count-badge {
   background: rgba(0, 0, 0, 0.1);
   padding: 2px 8px;

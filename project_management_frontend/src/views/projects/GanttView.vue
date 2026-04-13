@@ -1,7 +1,16 @@
 <template>
   <div class="gantt-view">
     <div class="page-header">
-      <h2>Gantt Chart</h2>
+      <div>
+        <h2>{{ project?.name || 'Gantt Chart' }}</h2>
+        <p v-if="project" class="project-meta">
+          <span>Opp ID: {{ project.opp_id }}</span>
+          <span class="separator">•</span>
+          <span>Version: {{ project.version }}</span>
+          <span class="separator">•</span>
+          <span>Created: {{ formatProjectDate(project.created_at) }}</span>
+        </p>
+      </div>
       <div class="btn-group">
         <Button
           icon="pi pi-arrow-left"
@@ -98,6 +107,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useProjectsStore } from '@/stores/projects'
 import { useTasksStore } from '@/stores/tasks'
 import { gantt } from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
@@ -109,7 +119,10 @@ import TaskDetailPanel from '@/components/TaskDetailPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
+const projectsStore = useProjectsStore()
 const tasksStore = useTasksStore()
+
+const project = computed(() => projectsStore.currentProject)
 
 const projectId = computed(() => route.params.id)
 const loading = ref(true)
@@ -180,8 +193,20 @@ const filteredTasks = computed(() => {
   })
 })
 
+const formatProjectDate = (dateString) => {
+  if (!dateString) return '-'
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 onMounted(async () => {
-  await tasksStore.fetchTasks(projectId.value)
+  await Promise.all([
+    projectsStore.fetchProjectById(projectId.value),
+    tasksStore.fetchTasks(projectId.value),
+  ])
   loading.value = false
   await nextTick()
   initGantt()
@@ -446,6 +471,16 @@ watch(filteredTasks, () => {
 </script>
 
 <style scoped>
+.project-meta {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.separator {
+  margin: 0 8px;
+}
+
 .gantt-controls {
   margin-bottom: 16px;
 }
