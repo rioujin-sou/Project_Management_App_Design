@@ -185,11 +185,13 @@ const filteredTasks = computed(() => {
   if (selectedResourceCategory.value) {
     tasks = tasks.filter(t => t.resource_category === selectedResourceCategory.value)
   }
-  // Sort by start_date ascending
+  // Sort by start_date ascending, then by wp_id ascending as tiebreaker
   return [...tasks].sort((a, b) => {
     const dateA = a.start_date ? new Date(a.start_date) : new Date('9999-12-31')
     const dateB = b.start_date ? new Date(b.start_date) : new Date('9999-12-31')
-    return dateA - dateB
+    const dateDiff = dateA - dateB
+    if (dateDiff !== 0) return dateDiff
+    return (a.wp_id || '').localeCompare(b.wp_id || '')
   })
 })
 
