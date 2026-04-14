@@ -185,13 +185,15 @@ const filteredTasks = computed(() => {
   if (selectedResourceCategory.value) {
     tasks = tasks.filter(t => t.resource_category === selectedResourceCategory.value)
   }
-  // Sort by start_date ascending, then by wp_id ascending as tiebreaker
+  // Sort by start_date → wp_id → id (unique tiebreaker) to guarantee stable order
   return [...tasks].sort((a, b) => {
     const dateA = a.start_date ? new Date(a.start_date) : new Date('9999-12-31')
     const dateB = b.start_date ? new Date(b.start_date) : new Date('9999-12-31')
     const dateDiff = dateA - dateB
     if (dateDiff !== 0) return dateDiff
-    return (a.wp_id || '').localeCompare(b.wp_id || '')
+    const wpDiff = (a.wp_id || '').localeCompare(b.wp_id || '')
+    if (wpDiff !== 0) return wpDiff
+    return a.id - b.id
   })
 })
 

@@ -46,7 +46,7 @@ def list_tasks(
 
     tasks = db.query(Task).filter(
         Task.project_id == project_id
-    ).offset(skip).limit(limit).all()
+    ).order_by(Task.id).offset(skip).limit(limit).all()
 
     logger.info(f"Returning {len(tasks)} tasks for project_id={project_id}")
     if tasks:
