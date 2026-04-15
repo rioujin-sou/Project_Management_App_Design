@@ -1,71 +1,84 @@
 <template>
-  <div class="app-layout">
+  <div class="app-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
     <!-- Sidebar -->
-    <aside class="sidebar" :class="{ open: sidebarOpen }">
+    <aside class="sidebar" :class="{ open: sidebarOpen, collapsed: sidebarCollapsed }">
       <div class="sidebar-header">
-        <div class="logo">
+        <div class="logo" v-show="!sidebarCollapsed">
           <i class="pi pi-briefcase"></i>
           <span>Project Manager</span>
         </div>
+        <Button
+          :icon="sidebarCollapsed ? 'pi pi-chevron-right' : 'pi pi-chevron-left'"
+          class="collapse-toggle"
+          text
+          rounded
+          :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          @click="toggleCollapsed"
+        />
       </div>
 
       <nav class="sidebar-nav">
-        <router-link to="/projects" class="nav-item" @click="closeSidebar">
+        <router-link to="/projects" class="nav-item" @click="closeSidebar" :title="sidebarCollapsed ? 'Projects' : undefined">
           <i class="pi pi-folder"></i>
-          <span>Projects</span>
+          <span v-show="!sidebarCollapsed">Projects</span>
         </router-link>
 
         <template v-if="currentProjectId">
-          <div class="nav-section-title">Current Project</div>
-          
-          <router-link 
-            :to="`/projects/${currentProjectId}/kanban`" 
+          <div class="nav-section-title" v-show="!sidebarCollapsed">Current Project</div>
+
+          <router-link
+            :to="`/projects/${currentProjectId}/kanban`"
             class="nav-item"
             @click="closeSidebar"
+            :title="sidebarCollapsed ? 'Kanban Board' : undefined"
           >
             <i class="pi pi-th-large"></i>
-            <span>Kanban Board</span>
+            <span v-show="!sidebarCollapsed">Kanban Board</span>
           </router-link>
 
-          <router-link 
-            :to="`/projects/${currentProjectId}/gantt`" 
+          <router-link
+            :to="`/projects/${currentProjectId}/gantt`"
             class="nav-item"
             @click="closeSidebar"
+            :title="sidebarCollapsed ? 'Gantt Chart' : undefined"
           >
             <i class="pi pi-chart-bar"></i>
-            <span>Gantt Chart</span>
+            <span v-show="!sidebarCollapsed">Gantt Chart</span>
           </router-link>
 
-          <router-link 
-            :to="`/projects/${currentProjectId}/baseline-diff`" 
+          <router-link
+            :to="`/projects/${currentProjectId}/baseline-diff`"
             class="nav-item"
             @click="closeSidebar"
+            :title="sidebarCollapsed ? 'Baseline Diff' : undefined"
           >
             <i class="pi pi-sliders-h"></i>
-            <span>Baseline Diff</span>
+            <span v-show="!sidebarCollapsed">Baseline Diff</span>
           </router-link>
         </template>
 
-        <div class="nav-section-title">Administration</div>
+        <div class="nav-section-title" v-show="!sidebarCollapsed">Administration</div>
 
-        <router-link 
+        <router-link
           v-if="authStore.isTDL"
-          to="/audit-logs" 
+          to="/audit-logs"
           class="nav-item"
           @click="closeSidebar"
+          :title="sidebarCollapsed ? 'Audit Logs' : undefined"
         >
           <i class="pi pi-history"></i>
-          <span>Audit Logs</span>
+          <span v-show="!sidebarCollapsed">Audit Logs</span>
         </router-link>
 
-        <router-link 
+        <router-link
           v-if="authStore.isTDL"
-          to="/users" 
+          to="/users"
           class="nav-item"
           @click="closeSidebar"
+          :title="sidebarCollapsed ? 'User Management' : undefined"
         >
           <i class="pi pi-users"></i>
-          <span>User Management</span>
+          <span v-show="!sidebarCollapsed">User Management</span>
         </router-link>
       </nav>
 
@@ -74,7 +87,7 @@
           <div class="user-avatar">
             <i class="pi pi-user"></i>
           </div>
-          <div class="user-details">
+          <div class="user-details" v-show="!sidebarCollapsed">
             <div class="user-email">{{ authStore.user?.email }}</div>
             <div class="user-role">
               <span class="status-badge" :class="authStore.userRole">
@@ -137,6 +150,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 
 const sidebarOpen = ref(false)
+const sidebarCollapsed = ref(false)
 
 // Debug role visibility
 onMounted(() => {
@@ -186,6 +200,10 @@ const closeSidebar = () => {
   sidebarOpen.value = false
 }
 
+const toggleCollapsed = () => {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+}
+
 const handleLogout = () => {
   authStore.logout()
 }
@@ -198,8 +216,34 @@ watch(() => route.path, () => {
 
 <style scoped>
 .sidebar-header {
-  padding: 20px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--surface-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 60px;
+}
+
+.collapse-toggle {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+}
+
+/* When collapsed, center the toggle button */
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+}
+
+/* When collapsed, center icons in nav items */
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+/* When collapsed, center the user avatar */
+.sidebar.collapsed .user-info {
+  justify-content: center;
 }
 
 .logo {
@@ -318,6 +362,16 @@ watch(() => route.path, () => {
 @media (max-width: 768px) {
   .menu-toggle {
     display: flex;
+  }
+
+  /* On mobile the full sidebar always slides in — ignore collapsed width */
+  .sidebar.collapsed {
+    width: var(--sidebar-width);
+  }
+
+  /* Hide the desktop collapse button on mobile */
+  .collapse-toggle {
+    display: none;
   }
 
   .sidebar-overlay {
