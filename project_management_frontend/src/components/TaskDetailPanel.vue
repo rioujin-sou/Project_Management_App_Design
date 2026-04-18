@@ -95,6 +95,14 @@
       <div class="action-buttons">
         <template v-if="!isEditing">
           <Button
+            v-if="canEditAllFields"
+            label="Delete"
+            icon="pi pi-trash"
+            severity="danger"
+            outlined
+            @click="confirmDelete"
+          />
+          <Button
             label="Edit"
             icon="pi pi-pencil"
             @click="startEditing"
@@ -114,6 +122,30 @@
           />
         </template>
       </div>
+
+      <!-- Delete Confirmation Dialog -->
+      <Dialog
+        v-model:visible="showDeleteDialog"
+        modal
+        header="Confirm Delete"
+        :style="{ width: '400px' }"
+      >
+        <p>Are you sure you want to delete task <strong>{{ task?.wp_id }}</strong>? This action cannot be undone.</p>
+        <template #footer>
+          <Button
+            label="Cancel"
+            severity="secondary"
+            @click="showDeleteDialog = false"
+          />
+          <Button
+            label="Delete"
+            icon="pi pi-trash"
+            severity="danger"
+            :loading="deleting"
+            @click="executeDelete"
+          />
+        </template>
+      </Dialog>
 
       <!-- Comments Section -->
       <div class="comments-section">
@@ -173,6 +205,7 @@ import { useCommentsStore } from '@/stores/comments'
 import { useToast } from 'primevue/usetoast'
 import Sidebar from 'primevue/sidebar'
 import Button from 'primevue/button'
+import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Dropdown from 'primevue/dropdown'
 import DatePicker from 'primevue/datepicker'
@@ -185,7 +218,7 @@ const props = defineProps({
   task: Object,
 })
 
-const emit = defineEmits(['update:visible', 'updated'])
+const emit = defineEmits(['update:visible', 'updated', 'deleted'])
 
 const authStore = useAuthStore()
 const tasksStore = useTasksStore()
@@ -199,10 +232,12 @@ const isVisible = computed({
 
 const loading = ref(false)
 const saving = ref(false)
+const deleting = ref(false)
 const isEditing = ref(false)
 const commentsLoading = ref(false)
 const addingComment = ref(false)
 const newComment = ref('')
+const showDeleteDialog = ref(false)
 
 const editForm = reactive({
   start_date: null,
@@ -326,6 +361,35 @@ const formatDateForAPI = (date) => {
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+const confirmDelete = () => {
+  showDeleteDialog.value = true
+}
+
+const executeDelete = async () => {
+  deleting.value = true
+  const result = await tasksStore.deleteTask(props.task.id)
+  deleting.value = false
+  showDeleteDialog.value = false
+
+  if (result.success) {
+    toast.add({
+      severity: 'success',
+      summary: 'Deleted',
+      detail: 'Task deleted successfully',
+      life: 3000,
+    })
+    emit('update:visible', false)
+    emit('deleted')
+  } else {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: result.error || 'Failed to delete task',
+      life: 5000,
+    })
+  }
 }
 
 const addComment = async () => {

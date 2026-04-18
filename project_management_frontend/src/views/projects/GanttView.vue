@@ -100,6 +100,7 @@
       v-model:visible="showTaskPanel"
       :task="selectedTask"
       @updated="handleTaskUpdated"
+      @deleted="handleTaskDeleted"
     />
   </div>
 </template>
@@ -467,6 +468,13 @@ const handleTaskUpdated = async () => {
     const refreshed = tasksStore.tasks.find(t => t.id === selectedTask.value.id)
     if (refreshed) selectedTask.value = refreshed
   }
+}
+
+const handleTaskDeleted = async () => {
+  showTaskPanel.value = false
+  selectedTask.value = null
+  await tasksStore.fetchTasks(projectId.value)
+  loadGanttData()
 }
 
 watch(filteredTasks, () => {
