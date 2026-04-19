@@ -26,6 +26,13 @@
           />
           <Button
             v-if="authStore.isTDL"
+            icon="pi pi-upload"
+            label="Import Tasks"
+            severity="secondary"
+            @click="showImportDialog = true"
+          />
+          <Button
+            v-if="authStore.isTDL"
             icon="pi pi-refresh"
             label="Update Baseline"
             severity="secondary"
@@ -113,6 +120,41 @@
       <Button label="Back to Projects" @click="router.push('/projects')" />
     </div>
 
+    <!-- Import Tasks Dialog -->
+    <Dialog
+      v-model:visible="showImportDialog"
+      header="Import Tasks from Excel"
+      :modal="true"
+      :style="{ width: '500px' }"
+      @hide="onImportDialogHide"
+    >
+      <div class="upload-content">
+        <FileUpload
+          ref="importFileRef"
+          mode="advanced"
+          name="file"
+          accept=".xlsx,.xls"
+          :maxFileSize="10000000"
+          :auto="false"
+          :customUpload="true"
+          @uploader="handleImport"
+          @select="onImportFileSelect"
+          @clear="onImportFileClear"
+        >
+          <template #empty>
+            <div class="upload-empty">
+              <i class="pi pi-cloud-upload"></i>
+              <p>Drag and drop Excel file here or click to browse</p>
+              <small>Supported formats: .xlsx, .xls (Max 10MB)</small>
+            </div>
+          </template>
+        </FileUpload>
+        <Message v-if="importError" severity="error" :closable="false" class="mt-3">
+          {{ importError }}
+        </Message>
+      </div>
+    </Dialog>
+
     <!-- Task Detail Sidebar -->
     <TaskDetailPanel
       v-model:visible="showTaskPanel"
@@ -133,6 +175,9 @@ import { projectsAPI } from '@/services/api'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
+import Dialog from 'primevue/dialog'
+import FileUpload from 'primevue/fileupload'
+import Message from 'primevue/message'
 import ProgressBar from 'primevue/progressbar'
 import ProgressSpinner from 'primevue/progressspinner'
 import InputText from 'primevue/inputtext'
@@ -151,6 +196,9 @@ const globalFilter = ref('')
 const showTaskPanel = ref(false)
 const selectedTask = ref(null)
 const exporting = ref(false)
+const showImportDialog = ref(false)
+const importFileRef = ref(null)
+const importError = ref('')
 
 const project = computed(() => projectsStore.currentProject)
 const projectId = computed(() => route.params.id)
@@ -228,6 +276,41 @@ const handleExportExcel = async () => {
   }
 }
 
+const onImportFileSelect = () => {
+  importError.value = ''
+}
+
+const onImportFileClear = () => {
+  importError.value = ''
+}
+
+const onImportDialogHide = () => {
+  importError.value = ''
+  importFileRef.value?.clear()
+}
+
+const handleImport = async (event) => {
+  const file = event.files[0]
+  if (!file) return
+
+  importError.value = ''
+  const result = await projectsStore.importTasks(projectId.value, file)
+
+  if (result.success) {
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Tasks imported successfully',
+      life: 3000,
+    })
+    showImportDialog.value = false
+    importFileRef.value?.clear()
+    await tasksStore.fetchTasks(projectId.value)
+  } else {
+    importError.value = result.error
+  }
+}
+
 const handleTaskUpdated = async () => {
   await tasksStore.fetchTasks(projectId.value)
 }
@@ -301,5 +384,33 @@ const handleTaskUpdated = async () => {
   font-size: 12px;
   min-width: 35px;
   text-align: right;
+}
+
+.upload-content {
+  padding: 16px 0;
+}
+
+.upload-empty {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.upload-empty i {
+  font-size: 48px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.upload-empty p {
+  margin: 8px 0;
+  color: var(--text-color);
+}
+
+.upload-empty small {
+  color: var(--text-secondary);
+}
+
+.mt-3 {
+  margin-top: 1rem;
 }
 </style>

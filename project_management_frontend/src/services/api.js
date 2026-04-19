@@ -130,6 +130,11 @@ export const projectsAPI = {
   delete: (id) =>
     api.delete(`/api/v1/projects/${id}`),
 
+  importTasks: (id, formData) =>
+    api.post(`/api/v1/projects/${id}/import-tasks`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
   updateBaseline: (id) =>
     api.post(`/api/v1/projects/${id}/update-baseline`),
 

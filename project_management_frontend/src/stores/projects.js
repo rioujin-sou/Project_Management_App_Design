@@ -86,6 +86,25 @@ export const useProjectsStore = defineStore('projects', {
       }
     },
 
+    async importTasks(projectId, file) {
+      this.loading = true
+      this.error = null
+      const formData = new FormData()
+      formData.append('file', file)
+      try {
+        const response = await projectsAPI.importTasks(projectId, formData)
+        if (this.currentProject && this.currentProject.id === projectId) {
+          this.currentProject = response.data
+        }
+        return { success: true, data: response.data }
+      } catch (error) {
+        this.error = error.response?.data?.detail || 'Failed to import tasks'
+        return { success: false, error: this.error }
+      } finally {
+        this.loading = false
+      }
+    },
+
     async updateBaseline(id) {
       this.loading = true
       this.error = null

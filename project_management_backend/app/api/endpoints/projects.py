@@ -270,6 +270,84 @@ async def upload_project_excel(
             os.unlink(tmp_file_path)
 
 
+@router.post("/{project_id}/import-tasks", response_model=ProjectSchema)
+async def import_tasks_excel(
+    project_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_tdl)
+):
+    """
+    Append tasks from an Excel file to an existing project. Only TDL can import.
+    Existing tasks are kept; only the new tasks from the file are added.
+    Project metadata and baseline are not modified.
+    """
+    logger.info(f"import_tasks called for project_id={project_id}, filename={file.filename}, user={current_user.id}")
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    if not file.filename.endswith('.xlsx'):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only .xlsx files are supported")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+        content = await file.read()
+        tmp_file.write(content)
+        tmp_file_path = tmp_file.name
+
+    try:
+        try:
+            parsed_data = parse_excel_file(tmp_file_path, file.filename)
+            logger.info(f"Excel parsed successfully. Tasks found: {len(parsed_data['tasks'])}")
+        except ExcelParserError as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        except Exception as e:
+            logger.error(f"Unexpected error during Excel parsing: {e}\n{traceback.format_exc()}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Unexpected error parsing Excel file: {str(e)}"
+            )
+
+        tasks_data = parsed_data['tasks']
+
+        for i, task_data in enumerate(tasks_data):
+            try:
+                task = Task(project_id=project.id, **task_data)
+                db.add(task)
+            except Exception as e:
+                logger.error(f"Error creating task {i+1}: {e}\n{traceback.format_exc()}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Error creating task {i+1}: {str(e)}"
+                )
+
+        log_audit(
+            db=db,
+            user_id=current_user.id,
+            action="UPDATE",
+            entity_type="Project",
+            entity_id=project.id,
+            changes={"message": f"Imported {len(tasks_data)} tasks from Excel"}
+        )
+
+        db.commit()
+        db.refresh(project)
+        _attach_project_meta(project, db)
+
+        logger.info(f"Imported {len(tasks_data)} tasks into project_id={project_id}")
+        return project
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in import_tasks_excel: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Unexpected error: {str(e)}")
+    finally:
+        if os.path.exists(tmp_file_path):
+            os.unlink(tmp_file_path)
+
+
 @router.post("/{project_id}/update-baseline", response_model=ProjectSchema)
 def update_project_baseline(
     project_id: int,
