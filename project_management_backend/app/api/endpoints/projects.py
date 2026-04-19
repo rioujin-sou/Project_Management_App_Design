@@ -14,7 +14,7 @@ from app.models.task import Task
 from app.schemas.project import Project as ProjectSchema, ProjectWithTasks, VisibilityUpdate
 from app.schemas.auth import MessageResponse
 from app.api.deps.auth import require_tdl, require_tdl_or_tpm, get_current_user
-from app.services.excel_parser import parse_excel_file, ExcelParserError, serialize_for_json
+from app.services.excel_parser import parse_excel_file, parse_tasks_only, ExcelParserError, serialize_for_json
 from app.services.excel_exporter import export_tasks_to_excel
 from app.services.audit_service import log_audit
 
@@ -298,8 +298,8 @@ async def import_tasks_excel(
 
     try:
         try:
-            parsed_data = parse_excel_file(tmp_file_path, file.filename)
-            logger.info(f"Excel parsed successfully. Tasks found: {len(parsed_data['tasks'])}")
+            tasks_data = parse_tasks_only(tmp_file_path)
+            logger.info(f"Excel parsed successfully. Tasks found: {len(tasks_data)}")
         except ExcelParserError as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
         except Exception as e:
@@ -308,8 +308,6 @@ async def import_tasks_excel(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Unexpected error parsing Excel file: {str(e)}"
             )
-
-        tasks_data = parsed_data['tasks']
 
         for i, task_data in enumerate(tasks_data):
             try:

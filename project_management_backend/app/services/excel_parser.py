@@ -268,6 +268,52 @@ class ExcelParser:
         }
 
 
+def parse_tasks_only(file_path: str) -> List[Dict[str, Any]]:
+    """
+    Parse only the task rows from an Excel file, without requiring a matching filename.
+    Used for importing additional tasks into an existing project.
+
+    Returns:
+        List of task dicts ready for DB insertion.
+
+    Raises:
+        ExcelParserError: If the sheet is missing, columns are invalid, or no valid rows found.
+    """
+    logger.info(f"parse_tasks_only called with file_path={file_path}")
+    parser = ExcelParser(file_path, "")
+
+    try:
+        df = pd.read_excel(file_path, sheet_name='EffortEstimation')
+        df = df.dropna(subset=['WP', 'WP-ID'])
+        logger.info(f"Excel file read successfully. Shape: {df.shape}")
+    except Exception as e:
+        logger.error(f"Failed to read Excel file: {e}\n{traceback.format_exc()}")
+        raise ExcelParserError(f"Failed to read Excel file: {str(e)}")
+
+    if not parser.validate_columns(df):
+        raise ExcelParserError("\n".join(parser.errors))
+
+    tasks = []
+    for idx, row in df.iterrows():
+        row_num = idx + 2
+        try:
+            task_data = parser.validate_row(row, row_num)
+            if task_data is not None:
+                tasks.append(task_data)
+        except Exception as e:
+            logger.error(f"Error processing row {row_num}: {e}\n{traceback.format_exc()}")
+            parser.errors.append(f"Row {row_num}: Unexpected error - {str(e)}")
+
+    if parser.errors:
+        raise ExcelParserError("Validation errors found:\n" + "\n".join(parser.errors))
+
+    if not tasks:
+        raise ExcelParserError("No valid tasks found in the Excel file")
+
+    logger.info(f"parse_tasks_only complete. Tasks parsed: {len(tasks)}")
+    return tasks
+
+
 def parse_excel_file(file_path: str, file_name: str) -> Dict[str, Any]:
     """
     Convenience function to parse an Excel file.
