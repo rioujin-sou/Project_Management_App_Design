@@ -48,7 +48,9 @@
         <div class="field-row">
           <div class="field-group">
             <label>Total Effort (MWDs)</label>
-            <div class="field-value">{{ task.total ?? '-' }}</div>
+            <div class="field-value">
+              {{ isEditing && isInternal ? editForm.total : (task.total ?? '-') }}
+            </div>
           </div>
           <div class="field-group">
             <label>Qty</label>
@@ -198,7 +200,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, reactive } from 'vue'
+import { ref, computed, watch, reactive, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTasksStore } from '@/stores/tasks'
 import { useCommentsStore } from '@/stores/comments'
@@ -244,6 +246,7 @@ const editForm = reactive({
   end_date: null,
   completion_pct: 0,
   resource_name: '',
+  total: 0,
 })
 
 const comments = computed(() => commentsStore.comments)
@@ -279,12 +282,58 @@ watch(
   { immediate: true }
 )
 
+// Workday helpers (weekends only, no holidays)
+const addWorkdays = (date, n) => {
+  const result = new Date(date)
+  let remaining = Math.round(n)
+  while (remaining > 0) {
+    result.setDate(result.getDate() + 1)
+    if (result.getDay() !== 0 && result.getDay() !== 6) remaining--
+  }
+  return result
+}
+
+const countWorkdays = (start, end) => {
+  const d = new Date(start)
+  const endDate = new Date(end)
+  d.setHours(0, 0, 0, 0)
+  endDate.setHours(0, 0, 0, 0)
+  let count = 0
+  while (d <= endDate) {
+    if (d.getDay() !== 0 && d.getDay() !== 6) count++
+    d.setDate(d.getDate() + 1)
+  }
+  return count
+}
+
+const isInternal = computed(() => props.task?.resource_category === 'Internal')
+
+// Prevent the start_date watcher from triggering the end_date watcher
+let suppressEndDateWatch = false
+
+watch(() => editForm.start_date, async (newVal) => {
+  if (!isEditing.value || !newVal || !isInternal.value) return
+  const effort = Math.round(editForm.total)
+  if (effort < 1) return
+  suppressEndDateWatch = true
+  editForm.end_date = addWorkdays(newVal, effort - 1)
+  await nextTick()
+  suppressEndDateWatch = false
+})
+
+watch(() => editForm.end_date, (newVal) => {
+  if (suppressEndDateWatch || !isEditing.value || !newVal || !editForm.start_date) return
+  if (!isInternal.value) return
+  editForm.total = countWorkdays(editForm.start_date, newVal)
+})
+
 const resetForm = () => {
   if (props.task) {
     editForm.start_date = props.task.start_date ? new Date(props.task.start_date) : null
     editForm.end_date = props.task.end_date ? new Date(props.task.end_date) : null
     editForm.completion_pct = props.task.completion_pct || 0
     editForm.resource_name = props.task.resource_name || ''
+    editForm.total = props.task.total ?? 0
   }
   isEditing.value = false
 }
@@ -329,6 +378,9 @@ const saveChanges = async () => {
 
   if (canEditAllFields.value) {
     updateData.resource_name = editForm.resource_name
+    if (isInternal.value) {
+      updateData.total = editForm.total
+    }
   }
 
   const result = await tasksStore.updateTask(props.task.id, updateData)
