@@ -313,10 +313,16 @@ let suppressEndDateWatch = false
 
 watch(() => editForm.start_date, async (newVal) => {
   if (!isEditing.value || !newVal || !isInternal.value) return
-  const effort = Math.round(editForm.total)
-  if (effort < 1) return
+  const effort = props.task?.effort ?? 1
+  let durationDays
+  if (effort < 1) {
+    durationDays = Math.round(editForm.total / effort) - 1
+  } else {
+    durationDays = Math.round(editForm.total) - 1
+  }
+  if (durationDays < 0) return
   suppressEndDateWatch = true
-  editForm.end_date = addWorkdays(newVal, effort - 1)
+  editForm.end_date = addWorkdays(newVal, durationDays)
   await nextTick()
   suppressEndDateWatch = false
 })
@@ -324,7 +330,9 @@ watch(() => editForm.start_date, async (newVal) => {
 watch(() => editForm.end_date, (newVal) => {
   if (suppressEndDateWatch || !isEditing.value || !newVal || !editForm.start_date) return
   if (!isInternal.value) return
-  editForm.total = countWorkdays(editForm.start_date, newVal)
+  const workdays = countWorkdays(editForm.start_date, newVal)
+  const effort = props.task?.effort ?? 1
+  editForm.total = effort < 1 ? workdays * effort : workdays
 })
 
 const resetForm = () => {
