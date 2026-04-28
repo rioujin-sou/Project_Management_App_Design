@@ -307,24 +307,34 @@ const countWorkdays = (start, end) => {
 }
 
 const isInternal = computed(() => props.task?.resource_category === 'Internal')
+const isExternal = computed(() => props.task?.resource_category === 'External')
 
 // Prevent the start_date watcher from triggering the end_date watcher
 let suppressEndDateWatch = false
 
-watch(() => editForm.start_date, async (newVal) => {
-  if (!isEditing.value || !newVal || !isInternal.value) return
-  const effort = props.task?.effort ?? 1
-  let durationDays
-  if (effort < 1) {
-    durationDays = Math.round(editForm.total / effort) - 1
-  } else {
-    durationDays = Math.round(editForm.total) - 1
+watch(() => editForm.start_date, async (newVal, oldVal) => {
+  if (!isEditing.value || !newVal) return
+
+  if (isInternal.value) {
+    const effort = props.task?.effort ?? 1
+    let durationDays
+    if (effort < 1) {
+      durationDays = Math.round(editForm.total / effort) - 1
+    } else {
+      durationDays = Math.round(editForm.total) - 1
+    }
+    if (durationDays < 0) return
+    suppressEndDateWatch = true
+    editForm.end_date = addWorkdays(newVal, durationDays)
+    await nextTick()
+    suppressEndDateWatch = false
+  } else if (isExternal.value && oldVal && editForm.end_date) {
+    const workdays = countWorkdays(oldVal, editForm.end_date)
+    suppressEndDateWatch = true
+    editForm.end_date = addWorkdays(newVal, workdays - 1)
+    await nextTick()
+    suppressEndDateWatch = false
   }
-  if (durationDays < 0) return
-  suppressEndDateWatch = true
-  editForm.end_date = addWorkdays(newVal, durationDays)
-  await nextTick()
-  suppressEndDateWatch = false
 })
 
 watch(() => editForm.end_date, (newVal) => {
