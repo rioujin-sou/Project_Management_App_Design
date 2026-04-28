@@ -66,6 +66,18 @@
               @change="filterTasks"
             />
           </div>
+          <div class="filter-item">
+            <label>Role Filter</label>
+            <Dropdown
+              v-model="selectedRole"
+              :options="roleOptions"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="All Roles"
+              style="width: 200px"
+              @change="filterTasks"
+            />
+          </div>
         </div>
 
         <div class="column-toggles">
@@ -133,6 +145,7 @@ const selectedTask = ref(null)
 const selectedSite = ref(null)
 const selectedProduct = ref(null)
 const selectedResourceCategory = ref(null)
+const selectedRole = ref(null)
 const visibleOptionalColumns = ref([])
 
 const siteOptions = computed(() => {
@@ -153,12 +166,15 @@ const resourceCategoryOptions = computed(() => {
   return [{ label: 'All Categories', value: null }, ...cats.map(c => ({ label: c, value: c }))]
 })
 
+const roleOptions = computed(() => {
+  const roles = [...new Set(tasksStore.tasks.map(t => t.role).filter(Boolean))].sort()
+  return [{ label: 'All Roles', value: null }, ...roles.map(r => ({ label: r, value: r }))]
+})
+
 // Mandatory columns (always visible, frozen on the left)
 const mandatoryColumns = [
   { name: 'site', label: 'Site', width: 80 },
   { name: 'text', label: 'Task', width: 270, tree: false },
-  { name: 'wp_id', label: 'WP-ID', width: 120, align: 'left' },
-  { name: 'product', label: 'Product', width: 80, align: 'left' },
   { name: 'resource_category', label: 'Resource\nCategory', width: 80, align: 'left' },
   { name: 'start_date', label: 'Start', width: 95, align: 'center' },
   { name: 'end_date', label: 'End', width: 95, align: 'center' },
@@ -167,6 +183,8 @@ const mandatoryColumns = [
 
 // Optional columns (can be toggled, scrollable)
 const optionalColumns = [
+  { name: 'wp_id', label: 'WP-ID', width: 120, align: 'left' },
+  { name: 'product', label: 'Product', width: 80, align: 'left' },
   { name: 'category', label: 'Category', width: 110 },
   { name: 'role', label: 'Role', width: 90 },
   { name: 'resource_name', label: 'Resource', width: 130 },
@@ -185,6 +203,9 @@ const filteredTasks = computed(() => {
   }
   if (selectedResourceCategory.value) {
     tasks = tasks.filter(t => t.resource_category === selectedResourceCategory.value)
+  }
+  if (selectedRole.value) {
+    tasks = tasks.filter(t => t.role === selectedRole.value)
   }
   // Sort by start_date → wp_id → id (unique tiebreaker) to guarantee stable order
   return [...tasks].sort((a, b) => {

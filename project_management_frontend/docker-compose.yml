@@ -60,6 +60,7 @@ services:
   nginx:
     image: nginx:alpine
     container_name: pm_nginx
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
