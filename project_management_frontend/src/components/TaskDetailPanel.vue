@@ -105,6 +105,13 @@
             @click="confirmDelete"
           />
           <Button
+            label="Precedence"
+            icon="pi pi-sitemap"
+            severity="secondary"
+            outlined
+            @click="openPrecedenceDialog"
+          />
+          <Button
             label="Edit"
             icon="pi pi-pencil"
             @click="startEditing"
@@ -146,6 +153,131 @@
             :loading="deleting"
             @click="executeDelete"
           />
+        </template>
+      </Dialog>
+
+      <!-- Precedence Dialog -->
+      <Dialog
+        v-model:visible="showPrecedenceDialog"
+        modal
+        :header="`Predecessors — ${task?.wp_id}`"
+        :style="{ width: '960px' }"
+        :closable="true"
+        @hide="onPrecedenceDialogHide"
+      >
+        <div class="precedence-dialog-body">
+          <!-- Type selector -->
+          <div class="prec-type-row">
+            <label class="prec-label">Precedence Type</label>
+            <Dropdown
+              v-model="precedenceType"
+              :options="precedenceTypeOptions"
+              optionLabel="label"
+              optionValue="value"
+              style="width: 220px"
+              @change="onPrecedenceTypeChange"
+            />
+          </div>
+
+          <!-- Existing predecessors -->
+          <div class="prec-existing-section">
+            <div class="prec-section-title">Existing Predecessors</div>
+            <div v-if="precedencesStore.loading" class="prec-loading">
+              <ProgressSpinner style="width: 24px; height: 24px" />
+            </div>
+            <div v-else-if="precedencesStore.taskPrecedences.length === 0" class="prec-empty">
+              No predecessors configured yet.
+            </div>
+            <div v-else class="prec-chips">
+              <span
+                v-for="p in precedencesStore.taskPrecedences"
+                :key="p.id"
+                class="prec-chip"
+              >
+                <span class="prec-chip-id">{{ p.predecessor_wp_id || `#${p.predecessor_task_id}` }}</span>
+                <span :class="['prec-chip-type', p.precedence_type === 'FS' ? 'type-fs' : 'type-ss']">
+                  {{ p.precedence_type === 'FS' ? 'Finish to Start' : 'Start to Start' }}
+                </span>
+                <button
+                  class="prec-chip-remove"
+                  :disabled="precedencesStore.loading"
+                  @click="removeExistingPrecedence(p)"
+                  title="Remove"
+                >×</button>
+              </span>
+            </div>
+          </div>
+
+          <!-- Candidate task list -->
+          <div class="prec-candidates-section">
+            <div class="prec-section-title">
+              Available Tasks
+              <span class="prec-candidate-hint">
+                {{ precedenceType === 'FS' ? '(end date ≤ current task start date)' : '(same start date as current task)' }}
+              </span>
+            </div>
+
+            <div v-if="candidateTasks.length === 0" class="prec-empty">
+              No tasks match this precedence type for the current task's dates.
+            </div>
+
+            <div v-else class="prec-table-wrapper">
+              <table class="prec-table">
+                <thead>
+                  <tr>
+                    <th class="col-check"></th>
+                    <th class="col-site">Site</th>
+                    <th class="col-task">Task</th>
+                    <th class="col-rc">Resource Category</th>
+                    <th class="col-date">Start Date</th>
+                    <th class="col-date">End Date</th>
+                    <th class="col-role">Role</th>
+                    <th class="col-comment">Comment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="t in candidateTasks"
+                    :key="t.id"
+                    :class="{ selected: isPredecessorSelected(t.id) }"
+                    @click="togglePredecessor(t.id)"
+                  >
+                    <td class="col-check">
+                      <input
+                        type="checkbox"
+                        :checked="isPredecessorSelected(t.id)"
+                        @click.stop
+                        @change="togglePredecessor(t.id)"
+                      />
+                    </td>
+                    <td class="col-site">{{ t.site || '-' }}</td>
+                    <td class="col-task" :title="t.wp">{{ t.wp || '-' }}</td>
+                    <td class="col-rc">{{ t.resource_category || '-' }}</td>
+                    <td class="col-date">{{ t.start_date || '-' }}</td>
+                    <td class="col-date">{{ t.end_date || '-' }}</td>
+                    <td class="col-role">{{ t.role || '-' }}</td>
+                    <td class="col-comment" :title="t.comment">{{ t.comment || '-' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <template #footer>
+          <div class="prec-footer">
+            <span v-if="selectedPredecessorIds.length > 0" class="prec-selection-count">
+              {{ selectedPredecessorIds.length }} task(s) selected
+            </span>
+            <Button label="Cancel" severity="secondary" @click="showPrecedenceDialog = false" />
+            <Button
+              label="Add Selected"
+              icon="pi pi-plus"
+              :loading="precedenceSaving"
+              :disabled="selectedPredecessorIds.length === 0"
+              @click="addSelectedPrecedences"
+            />
+          </div>
         </template>
       </Dialog>
 
@@ -204,6 +336,7 @@ import { ref, computed, watch, reactive, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTasksStore } from '@/stores/tasks'
 import { useCommentsStore } from '@/stores/comments'
+import { usePrecedencesStore } from '@/stores/precedences'
 import { useToast } from 'primevue/usetoast'
 import Sidebar from 'primevue/sidebar'
 import Button from 'primevue/button'
@@ -225,6 +358,7 @@ const emit = defineEmits(['update:visible', 'updated', 'deleted'])
 const authStore = useAuthStore()
 const tasksStore = useTasksStore()
 const commentsStore = useCommentsStore()
+const precedencesStore = usePrecedencesStore()
 const toast = useToast()
 
 const isVisible = computed({
@@ -240,6 +374,17 @@ const commentsLoading = ref(false)
 const addingComment = ref(false)
 const newComment = ref('')
 const showDeleteDialog = ref(false)
+
+// Precedence dialog state
+const showPrecedenceDialog = ref(false)
+const precedenceType = ref('FS')
+const selectedPredecessorIds = ref([])
+const precedenceSaving = ref(false)
+
+const precedenceTypeOptions = [
+  { label: 'Finish to Start', value: 'FS' },
+  { label: 'Start to Start', value: 'SS' },
+]
 
 const editForm = reactive({
   start_date: null,
@@ -268,6 +413,31 @@ const completionOptions = [
   { label: '100%', value: 100 },
 ]
 
+// Precedence: IDs of tasks already set as predecessors (any type)
+const existingPredecessorIds = computed(() =>
+  new Set(precedencesStore.taskPrecedences.map(p => p.predecessor_task_id))
+)
+
+// Candidate tasks filtered by precedence type, excluding current task and existing predecessors
+const candidateTasks = computed(() => {
+  if (!props.task) return []
+  const currentId = props.task.id
+  const currentStart = props.task.start_date   // "YYYY-MM-DD"
+  const currentEnd = props.task.end_date
+
+  return tasksStore.tasks.filter(t => {
+    if (t.id === currentId) return false
+    if (existingPredecessorIds.value.has(t.id)) return false
+    if (precedenceType.value === 'FS') {
+      // Predecessor must finish on or before current task's start date
+      return t.end_date && currentStart && t.end_date <= currentStart
+    } else {
+      // SS: same start date
+      return t.start_date && currentStart && t.start_date === currentStart
+    }
+  })
+})
+
 watch(
   () => props.task,
   async (newTask) => {
@@ -278,6 +448,7 @@ watch(
       commentsLoading.value = false
     } else {
       commentsStore.clearComments()
+      precedencesStore.clearTaskPrecedences()
     }
   },
   { immediate: true }
@@ -479,6 +650,73 @@ const executeDelete = async () => {
   }
 }
 
+// ── Precedence dialog ────────────────────────────────────────────────────────
+
+const openPrecedenceDialog = async () => {
+  precedenceType.value = 'FS'
+  selectedPredecessorIds.value = []
+  showPrecedenceDialog.value = true
+  await precedencesStore.fetchTaskPrecedences(props.task.id)
+}
+
+const onPrecedenceDialogHide = () => {
+  selectedPredecessorIds.value = []
+}
+
+const onPrecedenceTypeChange = () => {
+  // Reset selection when the candidate list changes
+  selectedPredecessorIds.value = []
+}
+
+const isPredecessorSelected = (id) => selectedPredecessorIds.value.includes(id)
+
+const togglePredecessor = (id) => {
+  const idx = selectedPredecessorIds.value.indexOf(id)
+  if (idx === -1) {
+    selectedPredecessorIds.value.push(id)
+  } else {
+    selectedPredecessorIds.value.splice(idx, 1)
+  }
+}
+
+const addSelectedPrecedences = async () => {
+  if (selectedPredecessorIds.value.length === 0) return
+
+  precedenceSaving.value = true
+  const items = selectedPredecessorIds.value.map(id => ({
+    predecessor_task_id: id,
+    precedence_type: precedenceType.value,
+  }))
+
+  const result = await precedencesStore.addPrecedences(
+    props.task.id,
+    items,
+    props.task.project_id,
+  )
+
+  precedenceSaving.value = false
+
+  if (result.success) {
+    selectedPredecessorIds.value = []
+    toast.add({ severity: 'success', summary: 'Success', detail: 'Predecessor(s) added', life: 3000 })
+  } else {
+    toast.add({ severity: 'error', summary: 'Error', detail: result.error, life: 5000 })
+  }
+}
+
+const removeExistingPrecedence = async (precedence) => {
+  const result = await precedencesStore.removePrecedence(
+    props.task.id,
+    precedence.id,
+    props.task.project_id,
+  )
+  if (!result.success) {
+    toast.add({ severity: 'error', summary: 'Error', detail: result.error, life: 5000 })
+  }
+}
+
+// ── Comments ─────────────────────────────────────────────────────────────────
+
 const addComment = async () => {
   if (!newComment.value.trim()) return
 
@@ -565,6 +803,211 @@ const addComment = async () => {
   padding-top: 16px;
   border-top: 1px solid var(--surface-border);
 }
+
+/* ── Precedence dialog ─────────────────────────────────────────────────────── */
+
+.precedence-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.prec-type-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.prec-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.prec-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prec-candidate-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  text-transform: none;
+}
+
+.prec-existing-section,
+.prec-candidates-section {
+  border-top: 1px solid var(--surface-border);
+  padding-top: 16px;
+}
+
+.prec-loading {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.prec-empty {
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+/* Predecessor chips */
+.prec-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.prec-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-100);
+  border: 1px solid var(--surface-border);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.prec-chip-id {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.prec-chip-type {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.type-fs {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.type-ss {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.prec-chip-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prec-chip-remove:hover:not(:disabled) {
+  background: var(--surface-200);
+  color: var(--text-color);
+}
+
+.prec-chip-remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Candidate task table */
+.prec-table-wrapper {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+}
+
+.prec-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.prec-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-100);
+}
+
+.prec-table th {
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--surface-border);
+  white-space: nowrap;
+}
+
+.prec-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--surface-50);
+  color: var(--text-color);
+  vertical-align: middle;
+}
+
+.prec-table tbody tr {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.prec-table tbody tr:hover {
+  background: var(--surface-50);
+}
+
+.prec-table tbody tr.selected {
+  background: #eff6ff;
+}
+
+.prec-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Column widths */
+.col-check  { width: 36px; text-align: center; }
+.col-site   { width: 80px; }
+.col-task   { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-rc     { width: 130px; }
+.col-date   { width: 100px; white-space: nowrap; }
+.col-role   { width: 100px; }
+.col-comment { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Dialog footer */
+.prec-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.prec-selection-count {
+  margin-right: auto;
+  font-size: 13px;
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+/* ── Comments ─────────────────────────────────────────────────────────────── */
 
 .comments-section h3 {
   display: flex;

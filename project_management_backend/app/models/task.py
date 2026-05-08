@@ -44,6 +44,18 @@ class Task(Base):
     # Relationships
     project = relationship("Project", back_populates="tasks")
     comments = relationship("Comment", back_populates="task", cascade="all, delete-orphan")
+    precedences_as_successor = relationship(
+        "TaskPrecedence",
+        foreign_keys="[TaskPrecedence.successor_task_id]",
+        back_populates="successor",
+        cascade="all, delete-orphan",
+    )
+    precedences_as_predecessor = relationship(
+        "TaskPrecedence",
+        foreign_keys="[TaskPrecedence.predecessor_task_id]",
+        back_populates="predecessor",
+        cascade="all, delete-orphan",
+    )
     
     # Computed status property (not a database column, computed in Python)
     @property

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.security import get_password_hash
-from app.api.endpoints import auth, users, projects, tasks, comments, audit
+from app.api.endpoints import auth, users, projects, tasks, comments, audit, precedence
 from app.db.session import engine, SessionLocal
 from app.models import base
 from app.models.user import User, UserRole
@@ -85,6 +85,7 @@ app.include_router(projects.router, prefix=f"{settings.API_V1_STR}/projects", ta
 app.include_router(tasks.router, prefix=f"{settings.API_V1_STR}/tasks", tags=["tasks"])
 app.include_router(comments.router, prefix=f"{settings.API_V1_STR}/comments", tags=["comments"])
 app.include_router(audit.router, prefix=f"{settings.API_V1_STR}/audit-logs", tags=["audit-logs"])
+app.include_router(precedence.router, prefix=f"{settings.API_V1_STR}/tasks", tags=["precedence"])
 
 
 @app.get("/")

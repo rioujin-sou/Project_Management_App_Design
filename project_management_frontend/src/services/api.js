@@ -184,6 +184,21 @@ export const auditLogsAPI = {
     api.get('/api/v1/audit-logs', { params }),
 }
 
+// Precedence API
+export const precedenceAPI = {
+  list: (taskId) =>
+    api.get(`/api/v1/tasks/${taskId}/precedences`),
+
+  listByProject: (projectId) =>
+    api.get(`/api/v1/tasks/project/${projectId}/precedences`),
+
+  add: (taskId, items) =>
+    api.post(`/api/v1/tasks/${taskId}/precedences`, items),
+
+  remove: (taskId, precedenceId) =>
+    api.delete(`/api/v1/tasks/${taskId}/precedences/${precedenceId}`),
+}
+
 // Users API
 export const usersAPI = {
   getAll: () =>

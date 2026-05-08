@@ -122,6 +122,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
 import { useTasksStore } from '@/stores/tasks'
+import { usePrecedencesStore } from '@/stores/precedences'
 import { gantt } from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
 import Button from 'primevue/button'
@@ -134,6 +135,7 @@ const route = useRoute()
 const router = useRouter()
 const projectsStore = useProjectsStore()
 const tasksStore = useTasksStore()
+const precedencesStore = usePrecedencesStore()
 
 const project = computed(() => projectsStore.currentProject)
 
@@ -235,6 +237,7 @@ onMounted(async () => {
     projectsStore.fetchProjectById(projectId.value)
   }
   await tasksStore.fetchTasks(projectId.value)
+  await precedencesStore.fetchProjectPrecedences(projectId.value)
   loading.value = false
   await nextTick()
   initGantt()
@@ -340,8 +343,9 @@ const initGantt = () => {
   // Remove text labels from task bars in the timeline
   gantt.templates.task_text = () => ''
 
-  // Enable markers plugin and today marker
+  // Enable markers plugin and today marker; links are enabled by default
   gantt.plugins({ marker: true })
+  gantt.config.show_links = true
   gantt.config.show_markers = true
 
   // Initialize gantt
@@ -388,8 +392,19 @@ const loadGanttData = () => {
   gantt.config.start_date = startDate
   gantt.config.end_date = endDate
 
+  // Build link arrows from precedences — only show links where both tasks are visible
+  const visibleIds = new Set(filteredTasks.value.map(t => t.id))
+  const links = precedencesStore.projectPrecedences
+    .filter(p => visibleIds.has(p.predecessor_task_id) && visibleIds.has(p.successor_task_id))
+    .map(p => ({
+      id: p.id,
+      source: p.predecessor_task_id,
+      target: p.successor_task_id,
+      type: p.precedence_type === 'FS' ? '0' : '1',  // 0=FS, 1=SS in DHTMLX Gantt
+    }))
+
   gantt.clearAll()
-  gantt.parse({ data, links: [] })
+  gantt.parse({ data, links })
 
   // Add today marker after parse (clearAll wipes markers)
   const todayTokyo = new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }))
@@ -495,10 +510,17 @@ const handleTaskDeleted = async () => {
   showTaskPanel.value = false
   selectedTask.value = null
   await tasksStore.fetchTasks(projectId.value)
+  await precedencesStore.fetchProjectPrecedences(projectId.value)
   loadGanttData()
 }
 
 watch(filteredTasks, () => {
+  if (!loading.value && ganttContainer.value) {
+    loadGanttData()
+  }
+})
+
+watch(() => precedencesStore.projectPrecedences, () => {
   if (!loading.value && ganttContainer.value) {
     loadGanttData()
   }
