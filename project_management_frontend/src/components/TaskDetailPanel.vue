@@ -160,11 +160,36 @@
       <Dialog
         v-model:visible="showPrecedenceDialog"
         modal
-        :header="`Predecessors — ${task?.wp_id}`"
         :style="{ width: '960px' }"
         :closable="true"
         @hide="onPrecedenceDialogHide"
       >
+        <template #header>
+          <div class="prec-dialog-header">
+            <span class="prec-dialog-title">Predecessors</span>
+            <div class="prec-dialog-meta">
+              <span class="prec-meta-item">
+                <span class="prec-meta-label">WP-ID</span>
+                <span class="prec-meta-value">{{ task?.wp_id || '-' }}</span>
+              </span>
+              <span class="prec-meta-sep">|</span>
+              <span class="prec-meta-item">
+                <span class="prec-meta-label">Task</span>
+                <span class="prec-meta-value" :title="task?.wp">{{ task?.wp || '-' }}</span>
+              </span>
+              <span class="prec-meta-sep">|</span>
+              <span class="prec-meta-item">
+                <span class="prec-meta-label">Resource Category</span>
+                <span class="prec-meta-value">{{ task?.resource_category || '-' }}</span>
+              </span>
+              <span class="prec-meta-sep">|</span>
+              <span class="prec-meta-item">
+                <span class="prec-meta-label">Comment</span>
+                <span class="prec-meta-value" :title="task?.comment">{{ task?.comment || '-' }}</span>
+              </span>
+            </div>
+          </div>
+        </template>
         <div class="precedence-dialog-body">
           <!-- Type selector -->
           <div class="prec-type-row">
@@ -805,6 +830,53 @@ const addComment = async () => {
 }
 
 /* ── Precedence dialog ─────────────────────────────────────────────────────── */
+
+.prec-dialog-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prec-dialog-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.prec-dialog-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.prec-meta-sep {
+  color: var(--surface-border);
+  user-select: none;
+}
+
+.prec-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prec-meta-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+}
+
+.prec-meta-value {
+  color: var(--text-color);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .precedence-dialog-body {
   display: flex;
