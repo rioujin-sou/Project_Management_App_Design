@@ -1008,7 +1008,8 @@ const addComment = async () => {
 
 .prec-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 13px;
 }
 
