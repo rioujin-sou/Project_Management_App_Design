@@ -219,11 +219,11 @@
                 :key="p.id"
                 class="prec-chip"
               >
-                <span class="prec-chip-id">{{ p.predecessor_wp_id || `#${p.predecessor_task_id}` }}</span>
+                <span class="prec-chip-id">{{ predecessorTask(p.predecessor_task_id)?.wp_id || `#${p.predecessor_task_id}` }}</span>
                 <span class="prec-chip-sep">|</span>
-                <span class="prec-chip-task" :title="p.predecessor_wp">{{ p.predecessor_wp || '-' }}</span>
+                <span class="prec-chip-task" :title="predecessorTask(p.predecessor_task_id)?.wp">{{ predecessorTask(p.predecessor_task_id)?.wp || '-' }}</span>
                 <span class="prec-chip-sep">|</span>
-                <span class="prec-chip-comment" :title="p.predecessor_comment">{{ p.predecessor_comment || '-' }}</span>
+                <span class="prec-chip-comment" :title="predecessorTask(p.predecessor_task_id)?.comment">{{ predecessorTask(p.predecessor_task_id)?.comment || '-' }}</span>
                 <span class="prec-chip-sep">|</span>
                 <span :class="['prec-chip-type', p.precedence_type === 'FS' ? 'type-fs' : 'type-ss']">
                   {{ p.precedence_type === 'FS' ? 'Finish to Start' : 'Start to Start' }}
@@ -681,6 +681,8 @@ const executeDelete = async () => {
 }
 
 // ── Precedence dialog ────────────────────────────────────────────────────────
+
+const predecessorTask = (id) => tasksStore.tasks.find(t => t.id === id) ?? null
 
 const openPrecedenceDialog = async () => {
   precedenceType.value = 'FS'
