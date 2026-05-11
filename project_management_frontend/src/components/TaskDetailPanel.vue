@@ -1000,42 +1000,47 @@ const addComment = async () => {
 
 /* Candidate task table */
 .prec-table-wrapper {
-  max-height: 320px;
-  overflow-y: auto;
   border: 1px solid var(--surface-border);
   border-radius: 6px;
+  overflow: hidden;
 }
 
 .prec-table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
+  table-layout: fixed;
+  border-collapse: collapse;
   font-size: 13px;
 }
 
-.prec-table th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+.prec-table thead {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
   background: var(--surface-100);
+}
+
+.prec-table th {
   padding: 8px 10px;
   text-align: left;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
-  border-bottom: 1px solid var(--surface-border);
+  border-bottom: 2px solid var(--surface-border);
   white-space: nowrap;
 }
 
-.prec-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--surface-50);
-  color: var(--text-color);
-  vertical-align: middle;
+.prec-table tbody {
+  display: block;
+  max-height: 280px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .prec-table tbody tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
   cursor: pointer;
   transition: background 0.1s;
 }
@@ -1048,18 +1053,28 @@ const addComment = async () => {
   background: #eff6ff;
 }
 
+.prec-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--surface-50);
+  color: var(--text-color);
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .prec-table tbody tr:last-child td {
   border-bottom: none;
 }
 
 /* Column widths */
-.col-check  { width: 36px; text-align: center; }
-.col-site   { width: 80px; }
-.col-task   { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.col-rc     { width: 130px; }
-.col-date   { width: 100px; white-space: nowrap; }
-.col-role   { width: 100px; }
-.col-comment { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-check   { width: 36px; text-align: center; }
+.col-site    { width: 80px; }
+.col-task    { width: 200px; }
+.col-rc      { width: 130px; }
+.col-date    { width: 100px; }
+.col-role    { width: 100px; }
+.col-comment { width: 180px; }
 
 /* Dialog footer */
 .prec-footer {
