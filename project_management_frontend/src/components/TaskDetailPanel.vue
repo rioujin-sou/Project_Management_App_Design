@@ -220,6 +220,11 @@
                 class="prec-chip"
               >
                 <span class="prec-chip-id">{{ p.predecessor_wp_id || `#${p.predecessor_task_id}` }}</span>
+                <span class="prec-chip-sep">|</span>
+                <span class="prec-chip-task" :title="p.predecessor_wp">{{ p.predecessor_wp || '-' }}</span>
+                <span class="prec-chip-sep">|</span>
+                <span class="prec-chip-comment" :title="p.predecessor_comment">{{ p.predecessor_comment || '-' }}</span>
+                <span class="prec-chip-sep">|</span>
                 <span :class="['prec-chip-type', p.precedence_type === 'FS' ? 'type-fs' : 'type-ss']">
                   {{ p.precedence_type === 'FS' ? 'Finish to Start' : 'Start to Start' }}
                 </span>
@@ -937,31 +942,52 @@ const addComment = async () => {
 /* Predecessor chips */
 .prec-chips {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .prec-chip {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   background: var(--surface-100);
   border: 1px solid var(--surface-border);
-  border-radius: 20px;
-  padding: 4px 10px;
+  border-radius: 6px;
+  padding: 6px 10px;
   font-size: 13px;
+  min-width: 0;
+}
+
+.prec-chip-sep {
+  color: var(--surface-400);
+  flex-shrink: 0;
+  user-select: none;
 }
 
 .prec-chip-id {
   font-weight: 600;
   color: var(--text-color);
+  flex-shrink: 0;
 }
+
+.prec-chip-task,
+.prec-chip-comment {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-color);
+  min-width: 0;
+}
+
+.prec-chip-task  { max-width: 220px; }
+.prec-chip-comment { max-width: 180px; }
 
 .prec-chip-type {
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 600;
+  flex-shrink: 0;
 }
 
 .type-fs {

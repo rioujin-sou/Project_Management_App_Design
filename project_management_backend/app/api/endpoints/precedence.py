@@ -149,5 +149,6 @@ def _to_response(row: TaskPrecedence) -> PrecedenceResponse:
         precedence_type=row.precedence_type,
         predecessor_wp_id=row.predecessor.wp_id if row.predecessor else None,
         predecessor_wp=row.predecessor.wp if row.predecessor else None,
+        predecessor_comment=row.predecessor.comment if row.predecessor else None,
         created_at=row.created_at,
     )

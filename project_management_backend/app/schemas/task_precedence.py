@@ -15,6 +15,7 @@ class PrecedenceResponse(BaseModel):
     precedence_type: str
     predecessor_wp_id: Optional[str] = None
     predecessor_wp: Optional[str] = None
+    predecessor_comment: Optional[str] = None
     created_at: datetime
 
     class Config:
