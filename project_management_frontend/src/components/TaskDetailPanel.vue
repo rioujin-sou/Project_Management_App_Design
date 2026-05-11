@@ -68,7 +68,7 @@
           <div class="field-group">
             <label>Start Date</label>
             <div v-if="!isEditing" class="field-value">{{ formatDate(task.start_date) }}</div>
-            <DatePicker v-else v-model="editForm.start_date" dateFormat="yy-mm-dd" class="w-full" />
+            <DatePicker v-else v-model="editForm.start_date" dateFormat="yy-mm-dd" class="w-full" :minDate="startDateMinDate" />
           </div>
           <div class="field-group">
             <label>End Date</label>
@@ -448,6 +448,27 @@ const existingPredecessorIds = computed(() =>
   new Set(precedencesStore.taskPrecedences.map(p => p.predecessor_task_id))
 )
 
+// Minimum allowed start date when the current task has FS predecessors.
+// Equals the next working day after the latest end date among FS predecessors.
+const startDateMinDate = computed(() => {
+  if (!isEditing.value || !props.task) return null
+
+  const fsPredecessors = precedencesStore.projectPrecedences.filter(
+    p => p.successor_task_id === props.task.id && p.precedence_type === 'FS'
+  )
+  if (fsPredecessors.length === 0) return null
+
+  let maxEndDate = null
+  for (const link of fsPredecessors) {
+    const predTask = tasksStore.tasks.find(t => t.id === link.predecessor_task_id)
+    if (!predTask?.end_date) continue
+    const d = new Date(predTask.end_date)
+    if (!maxEndDate || d > maxEndDate) maxEndDate = d
+  }
+
+  return maxEndDate ? addWorkdays(maxEndDate, 1) : null
+})
+
 // Candidate tasks filtered by precedence type, excluding current task and existing predecessors
 const candidateTasks = computed(() => {
   if (!props.task) return []
@@ -594,6 +615,10 @@ const formatDateTime = (dateString) => {
 const startEditing = () => {
   resetForm()
   isEditing.value = true
+  // Ensure project precedences are loaded for date constraint and cascade logic
+  if (props.task?.project_id && precedencesStore.projectPrecedences.length === 0) {
+    precedencesStore.fetchProjectPrecedences(props.task.project_id)
+  }
 }
 
 const cancelEditing = () => {
@@ -602,6 +627,8 @@ const cancelEditing = () => {
 
 const saveChanges = async () => {
   saving.value = true
+
+  const originalEndDate = props.task.end_date  // "YYYY-MM-DD" — captured before the update
 
   const updateData = {
     start_date: editForm.start_date ? formatDateForAPI(editForm.start_date) : null,
@@ -621,24 +648,55 @@ const saveChanges = async () => {
 
   const result = await tasksStore.updateTask(props.task.id, updateData)
 
-  saving.value = false
+  if (!result.success) {
+    saving.value = false
+    toast.add({ severity: 'error', summary: 'Error', detail: result.error, life: 5000 })
+    return
+  }
 
-  if (result.success) {
-    toast.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: 'Task updated successfully',
-      life: 3000,
+  // Cascade date shifts to FS successors when end date changed
+  if (updateData.end_date && updateData.end_date !== originalEndDate) {
+    await cascadeUpdateSuccessors(props.task.id, updateData.end_date, new Set())
+  }
+
+  saving.value = false
+  toast.add({ severity: 'success', summary: 'Success', detail: 'Task updated successfully', life: 3000 })
+  isEditing.value = false
+  emit('updated')
+}
+
+// Recursively shift FS successors whose start date is overtaken by the predecessor's new end date.
+// `visited` guards against cycles.
+const cascadeUpdateSuccessors = async (predecessorTaskId, newEndDateStr, visited) => {
+  if (visited.has(predecessorTaskId)) return
+  visited.add(predecessorTaskId)
+
+  const fsLinks = precedencesStore.projectPrecedences.filter(
+    p => p.predecessor_task_id === predecessorTaskId && p.precedence_type === 'FS'
+  )
+
+  for (const link of fsLinks) {
+    const successor = tasksStore.tasks.find(t => t.id === link.successor_task_id)
+    if (!successor?.start_date || !successor?.end_date) continue
+
+    // Only shift when predecessor's new end date meets or overlaps successor's start
+    if (newEndDateStr < successor.start_date) continue
+
+    const newSuccessorStart = addWorkdays(new Date(newEndDateStr), 1)
+    const originalDuration = countWorkdays(successor.start_date, successor.end_date)
+    const newSuccessorEnd = addWorkdays(newSuccessorStart, originalDuration - 1)
+
+    const newStartStr = formatDateForAPI(newSuccessorStart)
+    const newEndStr = formatDateForAPI(newSuccessorEnd)
+
+    const result = await tasksStore.updateTask(successor.id, {
+      start_date: newStartStr,
+      end_date: newEndStr,
     })
-    isEditing.value = false
-    emit('updated')
-  } else {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: result.error,
-      life: 5000,
-    })
+
+    if (result.success) {
+      await cascadeUpdateSuccessors(successor.id, newEndStr, visited)
+    }
   }
 }
 
