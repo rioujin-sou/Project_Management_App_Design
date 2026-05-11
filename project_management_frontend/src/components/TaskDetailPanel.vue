@@ -1012,14 +1012,11 @@ const addComment = async () => {
   font-size: 13px;
 }
 
-.prec-table thead {
+.prec-table th {
   position: sticky;
   top: 0;
   z-index: 1;
   background: var(--surface-100);
-}
-
-.prec-table th {
   padding: 8px 10px;
   text-align: left;
   font-size: 11px;
